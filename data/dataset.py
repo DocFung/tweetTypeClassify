@@ -55,14 +55,18 @@ def loadData(path,types='train'):
             keyword.append(dealwithText(row[1]))
             location.append(dealwithText(row[2]))
             text.append(dealwithText(row[3]))
-            target.append(row[4])
+            if types=='train':
+                target.append(row[4])
     
     #将target转换为1与-1的浮点数，方便计算loss
-    for i,x in enumerate(target):
-        if x=='0':
-            target[i]=float(-1)
-        else:
-            target[i]=float(1)
+    if types=='train':
+        for i,x in enumerate(target):
+            if x=='0':
+                target[i]=float(-1)
+            else:
+                target[i]=float(1)
+    else:
+        target=['pred']*len(text)
     #target=t.autograd.Variable(t.Tensor(target))      
     return text,target
 
@@ -92,3 +96,15 @@ def prepareWordDict(train):
             word2index[vo]=len(word2index)                   
     return word2index
 
+def getBatch(dataset,dataL,targetset,batchSize):
+    #(batchSize, seqL, embSize)
+    for i in range(0,len(dataset),batchSize):
+        try:
+            inputs=dataset[i:i+batchSize]
+            seqL=dataL[i:i+batchSize]
+            targets=targetset[i:i+batchSize]
+        except:
+            inputs=dataset[i:]
+            seqL=dataL[i:]
+            targets=targetset[i:]
+        yield (inputs,seqL,targets)

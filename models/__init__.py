@@ -1,1 +1,1 @@
-from .rnn import RNNclassiy
+from .rnn import RNNclassify

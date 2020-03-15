@@ -8,14 +8,14 @@ Created on Fri Mar 13 15:13:18 2020
 import torch as t
 import torch.nn as nn
 from .basicModel import BasicModel
-class RNNclassiy(BasicModel):
+class RNNclassify(BasicModel):
     
-    def __init__(self,vocSize,embSize,hiddenSize,nLayers,batchSize):
-        super(RNNclassiy,self).__init__()
+    def __init__(self,embSize,hiddenSize,nLayers,batchSize):
+        super(RNNclassify,self).__init__()
         self.modelName='simple_rnn'
         self.rnn=nn.RNN(embSize,hiddenSize,nLayers)
         # in linear layer,output feature equal 2 mean two class classify using max
-        self.linear=nn.Linear(10,1)
+        self.linear=nn.Linear(hiddenSize,1)
         self.embSize=embSize
         self.nLayers=nLayers
         self.batchSize=batchSize
