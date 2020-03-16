@@ -20,7 +20,7 @@ class RNNclassify(BasicModel):
         self.nLayers=nLayers
         self.batchSize=batchSize
         self.hiddenSize=hiddenSize
-        
+        #self.embMatrix=[]
     def init_hidden(self):
         hidden = t.autograd.Variable(
             t.zeros(self.nLayers,self.batchSize,self.hiddenSize))

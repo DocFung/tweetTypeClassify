@@ -16,10 +16,12 @@ from config import DefaultConfig
 import numpy as np
 import csv
 import time
+from gensim.test.utils import common_texts,get_tmpfile
+from gensim.models import Word2Vec
 #import fire
 #import torchnet
 opt=DefaultConfig()
-
+path=get_tmpfile("word2vec.model")
 def train(**kwargs):
     opt.parse(kwargs)
     #definition
@@ -29,10 +31,21 @@ def train(**kwargs):
         model.load(opt.load_model_path)
         
     #data
-    text,target=D.loadData(opt.train_data_root)
-    wordDict=D.prepareWordDict(text)
-    seq,seqL=D.text2seq(text,wordDict)
-    emb=t.nn.Embedding(len(wordDict),opt.emb_size)
+    trainText,target=D.loadData(opt.train_data_root)
+    #testText,=D.loadData(opt.test_data_root)
+    trainText=[x.split() for x in trainText]
+    #testText=[x.split() for x in testText]
+    #trainTestText=[x for x in trainText]
+    #trainTestText.extend(testText)
+    word2VecModel=Word2Vec(trainText,size=opt.emb_size,window=5,min_count=1,workers=4)
+    #model.wordDict=word2VecModel
+    
+    
+    #wordDict=D.prepareWordDict(text)
+    #seq,seqL=D.text2seq(text,wordDict)
+    #emb=t.nn.Embedding(len(wordDict),opt.emb_size)
+    
+    _, seqL=D.text
     seqEmb=t.autograd.Variable(emb(t.LongTensor(seq)))
     target=t.autograd.Variable(t.Tensor(target))
     #loss and optimizer
