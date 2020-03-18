@@ -32,7 +32,25 @@ emb_seq=t.autograd.Variable(emb(t.LongTensor(seq)))
 # input is of size N x C = 3 x 5
 import torch
 import torch.nn.functional as F
-input = torch.randn(3, 5, requires_grad=True)
+input = torch.sigmoid(torch.randn(5, requires_grad=True))
 # each element in target has to have 0 <= value < C
-targets = torch.tensor([1, 0, 4])
-outputs = F.nll_loss(F.log_softmax(input), targets)
+targets = torch.tensor([1,0,0,1,1]).float()
+print('torch-----------------------------')
+outputs = F.binary_cross_entropy(input, targets)
+print(outputs)
+def MyCrossEntropy(input,target):
+    score=torch.tensor(0).float()
+    for x,y in zip(input,target):
+        score+= y*x.log()+(1-y)*(1-x).log()
+    return -1*score/5
+
+print('mine------------------------------')
+print(MyCrossEntropy(input, targets))
+def pred2res(L):
+    res=[]
+    for i in L:
+        if i[0]>i[1]:
+            res.append(0)
+        else:
+            res.append(1)
+    return res
