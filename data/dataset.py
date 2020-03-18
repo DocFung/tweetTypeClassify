@@ -50,7 +50,7 @@ def loadData(path,types='train'):
     text=[]
     target=[]
     
-    with open(path) as f:
+    with open(path,encoding='utf-8') as f:
         csvReader=csv.reader(f)
         header=next(csvReader)
         for row in csvReader:
@@ -58,9 +58,10 @@ def loadData(path,types='train'):
             location.append(dealwithText(row[2]))
             text.append(dealwithText(row[3]))
             if types=='train':
-                target.append(row[4])
+                target.append(int(row[4]))
     
     #将target转换为1与-1的浮点数，方便计算loss
+    '''
     if types=='train':
         for i,x in enumerate(target):
             if x=='0':
@@ -69,7 +70,8 @@ def loadData(path,types='train'):
                 target[i]=float(1)
     else:
         target=['pred']*len(text)
-    #target=t.autograd.Variable(t.Tensor(target))      
+    #target=t.autograd.Variable(t.Tensor(target))
+    '''
     return text,target
 
 def dealwithText(text):
@@ -81,37 +83,22 @@ def text2seq(dataset,word2index):
     sentenceLen=max([len(text) for text in dataSplit])
     datas=[]
     length=[]
-    
-    if str(type(word2index))=="<class 'gensim.models.word2vec.Word2Vec'>":
-        for text in dataSplit:
-            textL=[]
-            for word in text:
-                wordVec=word2index[word].tolist()
-                wordVec=[round(x,4) for x in wordVec]
-                textL.append(wordVec)
-            datas.append(textL)
-            length.append(len(text))
-    else:
-        for text in dataSplit:
-            vecText=[0]*sentenceLen
-            vecText[:len(text)]=list(
-                map(lambda w:word2index[w] if word2index[w] is not None else word2index['unk'], text))
-            datas.append(vecText)
-            length.append(len(text))
+    for text in dataSplit:
+        vecText=[0]*sentenceLen
+        vecText[:len(text)]=list(
+            map(lambda w:word2index[w] if word2index[w] is not None else word2index['unk'], text))
+        datas.append(vecText)
+        length.append(len(text))
     return datas,length
     
         
-def prepareWordDict(train,method='normal',embSize=100):
-    if method=='normal':
-        word2index={'unk':0}
-        flatten = lambda l: [item for sublist in l for item in sublist]
-        trainSplit=flatten([text.split() for text in train])
-        for vo in trainSplit:
-            if word2index.get(vo) is None:
-                word2index[vo]=len(word2index)                   
-    elif method=='word2vec':
-        trainSplit=[d.split() for d in train]
-        word2index=Word2Vec(trainSplit,size=embSize,window=5,min_count=1,workers=4)
+def prepareWordDict(train):
+    word2index={}
+    flatten = lambda l: [item for sublist in l for item in sublist]
+    trainSplit=flatten([text.split() for text in train])
+    for vo in trainSplit:
+        if word2index.get(vo) is None:
+            word2index[vo]=len(word2index)                   
     return word2index
 
 def getBatch(dataset,dataL,targetset,batchSize):

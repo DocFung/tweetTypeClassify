@@ -6,11 +6,11 @@ class DefaultConfig(object):
     test_data_root=r'C:/Users/46362/Desktop/home/AI/kaggle datasets/Real or Not NLP with Disaster Tweets/nlp-getting-started/test.csv'
     
     load_model_path=None
-    
-    batch_size=5
+    #test:3263
+    batch_size=3263
     emb_size=128
-    hidden_size=20
-    n_layers=2
+    hidden_size=50
+    n_layers=5
     model_attr=['emb_size','hidden_size','n_layers','batch_size']
     
     result_file='result.csv'

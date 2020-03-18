@@ -31,25 +31,21 @@ def train(**kwargs):
         model.load(opt.load_model_path)
         
     #data
+    #生成词字典，将句子转换为向量
     trainText,target=D.loadData(opt.train_data_root)
-    #testText,=D.loadData(opt.test_data_root)
+    wordDict=D.prepareWordDict(trainText)
+    seq,seqL=D.text2seq(trainText,wordDict)
+    #根据word2vec模型生成新字典，将权重导入embedding
     trainText=[x.split() for x in trainText]
-    #testText=[x.split() for x in testText]
-    #trainTestText=[x for x in trainText]
-    #trainTestText.extend(testText)
     word2VecModel=Word2Vec(trainText,size=opt.emb_size,window=5,min_count=1,workers=4)
-    #model.wordDict=word2VecModel
+    emb=t.nn.Embedding.from_pretrained(t.FloatTensor(word2VecModel.wv.vectors))
     
-    
-    #wordDict=D.prepareWordDict(text)
-    #seq,seqL=D.text2seq(text,wordDict)
-    #emb=t.nn.Embedding(len(wordDict),opt.emb_size)
-    
-    _, seqL=D.text
     seqEmb=t.autograd.Variable(emb(t.LongTensor(seq)))
     target=t.autograd.Variable(t.Tensor(target))
     #loss and optimizer
     criterion=t.nn.MSELoss()
+    criterion2=t.nn.CrossEntropyLoss()
+    
     lr=opt.lr
     optimizer=t.optim.Adam(model.parameters(),lr=lr,weight_decay=opt.weight_decay)
     
@@ -59,6 +55,7 @@ def train(**kwargs):
     for epoch in range(opt.max_epoch):
         losses=[]
         hidden=model.init_hidden()
+        #context=model.init_context()
         for i,batch in enumerate(D.getBatch(seqEmb, seqL, target, opt.batch_size)) :
             inputs,inputsL,targets=batch[0],batch[1],batch[2]
 
@@ -66,17 +63,21 @@ def train(**kwargs):
                 break
             model.zero_grad()
             output=model(inputs,inputsL,hidden)
-        
-            loss=criterion(output.view(-1), targets)
+
+
+            #output=output.detach().view(2,-1)
+            targets=targets.long()#the crossentropy require
+            loss=criterion2(output, targets)
             losses.append(loss.item())
             loss.backward()
             t.nn.utils.clip_grad_norm(model.parameters(), 0.5) # gradient clipping
             optimizer.step()
-            if i > 0 and i % 50 == 0:
-                print("[%02d/%d] mean_loss : %0.2f, Perplexity : %0.2f" % (epoch,opt.max_epoch, np.mean(losses), np.exp(np.mean(losses))))
-                losses = []
+            #if i > 0 and i % 50 == 0:
+            print("[%02d/%d] loss : %0.2f, Perplexity : %0.2f" % (epoch,opt.max_epoch, np.mean(losses), np.exp(np.mean(losses))))
+            #losses = []
     opt.load_model_path=model.save()
 
+    
 
 def val():
     pass
@@ -85,33 +86,48 @@ def test(**kwargs):
     model = getattr(models, opt.model)(opt.emb_size,opt.hidden_size,opt.n_layers,opt.batch_size).eval()
     if opt.load_model_path:
         model.load(opt.load_model_path)
-    
     opt.parse(kwargs)
+    #读数据
     text,target=D.loadData(opt.test_data_root,types='test')
     wordDict=D.prepareWordDict(text)
     seq,seqL=D.text2seq(text,wordDict)
-    emb=t.nn.Embedding(len(wordDict),opt.emb_size)
+    #生成词向量
+    text=[x.split() for x in text]
+    word2VecModel=Word2Vec(text,size=opt.emb_size,window=5,min_count=1,workers=4)
+    emb=t.nn.Embedding.from_pretrained(t.FloatTensor(word2VecModel.wv.vectors))
     seqEmb=t.autograd.Variable(emb(t.LongTensor(seq)))
+    
     #target=t.autograd.Variable(t.Tensor(target))
-    pred=[]
+    
     for i,batch in enumerate(D.getBatch(seqEmb, seqL, target, opt.batch_size)) :
             inputs,inputsL,targets=batch[0],batch[1],batch[2]
             hidden=model.init_hidden()
+            #context=model.init_context()
+
             if len(inputs) != opt.batch_size:
                 break
             model.zero_grad()
+
             output=model(inputs,inputsL,hidden)
-            pred.append(output.detach().contiguous().view(-1).numpy().tolist())
-    flatten = lambda l: [item for sublist in l for item in sublist]
-    pred=flatten(pred)
+            #pred.append(output)
+            #pred.append(output.detach().contiguous().view(-1).numpy().tolist())
+    #flatten = lambda l: [item for sublist in l for item in sublist]
+    #pred=flatten(pred)
+    '''
+    pred=[]
+    for x in output:
+        if x[0]>x[1]:
+            pred.append(0)
+        else:
+            pred.append(1)
     
     for i,x in enumerate(pred):
-        if x<0 or x==0:
+        if x<0.5:
             pred[i]=0
         else:
             pred[i]=1
-    
-    return pred
+    '''
+    return output
 
 def write_csv(pred,filename):
     with open(filename,'w') as f:
@@ -137,6 +153,6 @@ model1= getattr(models, 'RNNclassiy')(opt.emb_size,opt.hidden_size,opt.n_layers,
 '''
 train()
 pred=test()
-name = time.strftime(opt.model+'_result'+ '%Y%m%d.csv')
-name=r'C:/Users/46362/Desktop/home/AI/kaggle datasets/Real or Not NLP with Disaster Tweets/result/'+name
-write_csv(pred,name)
+#name = time.strftime(opt.model+'_result'+ '%Y%m%d%H%M.csv')
+#name=r'C:/Users/46362/Desktop/home/AI/kaggle datasets/Real or Not NLP with Disaster Tweets/result/'+name
+#write_csv(pred,name)
