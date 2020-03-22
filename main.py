@@ -21,12 +21,15 @@ from gensim.models import Word2Vec
 #import fire
 #import torchnet
 opt=DefaultConfig()
+
 path=get_tmpfile("word2vec.model")
 def train(**kwargs):
     opt.parse(kwargs)
+    RESCHEDULED = False
     #definition
     #这里想办法优化一下，尽量写成()
     model=getattr(models, opt.model)(opt.emb_size,opt.hidden_size,opt.n_layers,opt.batch_size)
+    model.init_weight() 
     if opt.load_model_path:
         model.load(opt.load_model_path)
         
@@ -37,9 +40,12 @@ def train(**kwargs):
     seq,seqL=D.text2seq(trainText,wordDict)
     #根据word2vec模型生成新字典，将权重导入embedding
     trainText=[x.split() for x in trainText]
+    #这里发现word2vec得到的词向量会过小导致全连接层后以及sigmoid后都偏于0
     word2VecModel=Word2Vec(trainText,size=opt.emb_size,window=5,min_count=1,workers=4)
     emb=t.nn.Embedding.from_pretrained(t.FloatTensor(word2VecModel.wv.vectors))
-    
+    #emb=t.nn.Embedding(len(wordDict),opt.emb_size)
+    #emb.weight = t.nn.init.xavier_uniform(emb.weight)
+    t.nn.init.normal_(emb.weight,mean=0,std=1)
     seqEmb=t.autograd.Variable(emb(t.LongTensor(seq)))
     target=t.autograd.Variable(t.Tensor(target))
 
@@ -48,7 +54,8 @@ def train(**kwargs):
     #criterion2=t.nn.functional.binary_cross_entropy()
     
     lr=opt.lr
-    optimizer=t.optim.Adam(model.parameters(),lr=lr,weight_decay=opt.weight_decay)
+    #optimizer=t.optim.Adam(model.parameters(),lr=lr,weight_decay=opt.weight_decay)
+    optimizer=t.optim.Adam(model.parameters(),lr=lr)
     #optimizer=t.optim.SGD(model.parameters(),lr=lr)
     #statistic index
     
@@ -57,7 +64,8 @@ def train(**kwargs):
         losses=[]
         hidden=model.init_hidden()
         context=model.init_context()
-        for i,batch in enumerate(D.getBatch(seqEmb, seqL, target, opt.batch_size)) :
+        for i,batch in enumerate(D.getBatch(seqEmb, seqL, target, opt.batch_size)):
+            
             inputs,inputsL,targets=batch[0],batch[1],batch[2]
 
             if len(inputs) != opt.batch_size:
@@ -68,14 +76,17 @@ def train(**kwargs):
 
             #output=output.detach().view(2,-1)
             targets=targets.float()#the crossentropy require
-            loss=t.nn.functional.binary_cross_entropy(output,targets,reduction='sum')
+            loss=t.nn.functional.binary_cross_entropy(output,targets)
             losses.append(loss.item())
             loss.backward()
             #t.nn.utils.clip_grad_norm(model.parameters(), 0.5) # gradient clipping
             optimizer.step()
             #if i > 0 and i % 50 == 0:
             print("[%02d/%d] loss : %0.2f" % (epoch,opt.max_epoch, np.mean(losses)))
-            #losses = []
+            losses=[]
+        if RESCHEDULED == False and epoch == opt.max_epoch//2:
+            optimizer = t.optim.Adam(model.parameters(), lr=lr*0.1)
+            RESCHEDULED = True
     opt.load_model_path=model.save()
 
     
@@ -106,7 +117,7 @@ def test(**kwargs):
             inputs,inputsL,targets=batch[0],batch[1],batch[2]
             hidden=model.init_hidden()
             context=model.init_context()
-
+            #偷懒处理
             if len(inputs) != opt.batch_size:
                 break
             model.zero_grad()
@@ -116,21 +127,22 @@ def test(**kwargs):
             #pred.append(output.detach().contiguous().view(-1).numpy().tolist())
     #flatten = lambda l: [item for sublist in l for item in sublist]
     #pred=flatten(pred)
-    '''
+    
     pred=[]
+    '''
     for x in output:
         if x[0]>x[1]:
             pred.append(0)
         else:
             pred.append(1)
-    
-    for i,x in enumerate(pred):
-        if x<0.5:
-            pred[i]=0
-        else:
-            pred[i]=1
     '''
-    return output
+    for i,x in enumerate(output):
+        if x<0.5:
+            pred.append(0)
+        else:
+            pred.append(1)
+    
+    return pred,sum(pred)
 
 def write_csv(pred,filename):
     with open(filename,'w') as f:
@@ -154,8 +166,8 @@ seqEmb=t.autograd.Variable(emb(t.LongTensor(seq)))
 
 model1= getattr(models, 'RNNclassiy')(opt.emb_size,opt.hidden_size,opt.n_layers,opt.batch_size)
 '''
-train()
-pred=test()
+train(batch_size=7613)
+res,res_sum=test(batch_size=3263)
 #name = time.strftime(opt.model+'_result'+ '%Y%m%d%H%M.csv')
 #name=r'C:/Users/46362/Desktop/home/AI/kaggle datasets/Real or Not NLP with Disaster Tweets/result/'+name
 #write_csv(pred,name)

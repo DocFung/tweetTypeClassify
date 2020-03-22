@@ -9,16 +9,16 @@ class DefaultConfig(object):
     #test:3263 train:7613
     batch_size=2000
     emb_size=128
-    hidden_size=20
-    n_layers=3
+    hidden_size=100
+    n_layers=2
     model_attr=['emb_size','hidden_size','n_layers','batch_size']
     
     result_file='result.csv'
     
     max_epoch=20
-    lr=0.1
+    lr=0.01
     lr_decay=0.95
-    weight_decay=1e-4
+    #weight_decay=1e-2
     
     def parse(self,kwargs):
         for k,v in kwargs.items():

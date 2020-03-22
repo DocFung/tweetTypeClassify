@@ -21,7 +21,12 @@ class LSTMclassify(BasicModel):
         self.nLayers=nLayers
         self.batchSize=batchSize
         self.hiddenSize=hiddenSize
-        
+
+    def init_weight(self):
+        #self.embed.weight = nn.init.xavier_uniform(self.embed.weight)
+        #self.linear.weight = nn.init.xavier_uniform(self.linear.weight,a=-1,b=1)
+        nn.init.uniform_(self.linear.weight,a=-1,b=1)
+        self.linear.bias.data.fill_(0)
         #self.embMatrix=[]
     def init_hidden(self):
         hidden = t.autograd.Variable(
@@ -32,12 +37,16 @@ class LSTMclassify(BasicModel):
             t.zeros(self.nLayers,self.batchSize,self.hiddenSize))
         return context
 
-    def init_weight(self):
-        pass
+
     
     def forward(self,inputs,inputsL,hidden,context):
+        
         inputPack = t.nn.utils.rnn.pack_padded_sequence(inputs, inputsL, batch_first=True,enforce_sorted=False)
         outputPack, (hn,cn) = self.lstm(inputPack, (hidden,context))
+        print('linear w')
+        print('------------------------------')
+        print(self.linear.weight)
+    
         '''
         unpacked = t.nn.utils.rnn.pad_packed_sequence(outputPack,batch_first=True,total_length=33)
         #input one seq into rnn model, output a whole complete seq
@@ -46,4 +55,8 @@ class LSTMclassify(BasicModel):
         linearInput=t.Tensor([x.detach().tolist() for x in linearInput])
         linearInput=linearInput.contiguous().view(linearInput.size(0),-1)
         '''
+        print('hn------------------------')
+        print(hn[-1])
+        print('-------------------------------')
+        print(sigmoid(self.linear(hn[-1])))
         return sigmoid(self.linear(hn[-1]))
